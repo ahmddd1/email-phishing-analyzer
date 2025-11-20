@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Phishing Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .risk-high { background-color: #f8d7da; border-left: 4px solid #dc3545; }
+        .risk-medium { background-color: #fff3cd; border-left: 4px solid #ffc107; }
+        .risk-low { background-color: #d1edff; border-left: 4px solid #0dcaf0; }
+        .risk-none { background-color: #d1e7dd; border-left: 4px solid #198754; }
+        .card { margin-bottom: 1rem; }
+        .analysis-section { margin-bottom: 2rem; }
+        .progress { height: 25px; }
+        .email-list { max-height: 400px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-shield-alt"></i> Email Phishing Analyzer
+            </span>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Upload Section -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-envelope"></i> Analyze Email
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Upload .eml File</label>
+                                    <input class="form-control" type="file" id="emailFile" accept=".eml">
+                                </div>
+                                <button class="btn btn-primary" onclick="analyzeUploadedEmail()">
+                                    <i class="fas fa-search"></i> Analyze Uploaded Email
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Fetch from IMAP</label>
+                                    <button class="btn btn-outline-primary w-100" onclick="fetchEmails()">
+                                        <i class="fas fa-inbox"></i> Fetch Unread Emails
+                                    </button>
+                                </div>
+                                <div id="emailList" class="email-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" class="text-center mt-4" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Analyzing email... This may take a few minutes.</p>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" style="display: none;">
+            <!-- Overall Risk -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card" id="overallRiskCard">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-chart-bar"></i> Overall Risk Assessment
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h4 id="riskScore">Risk Score: 0/100</h4>
+                                    <div class="progress mt-2">
+                                        <div id="riskProgress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <p id="riskLevel" class="mt-2"></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <button id="downloadReport" class="btn btn-success float-end" onclick="downloadReport()">
+                                        <i class="fas fa-download"></i> Download PDF Report
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email Information -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">Email Information</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tr><td><strong>Subject:</strong></td><td id="emailSubject">-</td></tr>
+                                <tr><td><strong>From:</strong></td><td id="emailFrom">-</td></tr>
+                                <tr><td><strong>Date:</strong></td><td id="analysisDate">-</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">Analysis Summary</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tr><td><strong>Suspicious URLs:</strong></td><td id="suspiciousUrls">0</td></tr>
+                                <tr><td><strong>Attachments:</strong></td><td id="attachmentCount">0</td></tr>
+                                <tr><td><strong>Malicious Detections:</strong></td><td id="maliciousDetections">0</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Headers Analysis -->
+            <div class="analysis-section">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-heading"></i> Headers Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="headersAnalysis"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- URL Analysis -->
+            <div class="analysis-section">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-link"></i> URL Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="urlAnalysis"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attachment Analysis -->
+            <div class="analysis-section">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-paperclip"></i> Attachment Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="attachmentAnalysis"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HTML Analysis -->
+            <div class="analysis-section">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fab fa-html5"></i> HTML Content Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="htmlAnalysis"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VirusTotal Results -->
+            <div class="analysis-section">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-virus"></i> VirusTotal Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="vtAnalysis"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Alert -->
+        <div id="errorAlert" class="alert alert-danger mt-4" style="display: none;">
+            <i class="fas fa-exclamation-triangle"></i> <span id="errorMessage"></span>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentReportFilename = '';
+
+        function analyzeUploadedEmail() {
+            const fileInput = document.getElementById('emailFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showError('Please select a file to analyze');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('email_file', file);
+
+            performAnalysis('/analyze', formData);
+        }
+
+        function fetchEmails() {
+            showLoading();
+            fetch('/fetch_emails', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    hideLoading();
+                    if (data.error) {
+                        showError(data.error);
+                    } else {
+                        displayEmailList(data.emails);
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    showError('Failed to fetch emails: ' + error);
+                });
+        }
+
+        function displayEmailList(emails) {
+            const emailListDiv = document.getElementById('emailList');
+            
+            if (emails.length === 0) {
+                emailListDiv.innerHTML = '<p class="text-muted">No unread emails found.</p>';
+                return;
+            }
+
+            let html = '<div class="list-group">';
+            emails.forEach(email => {
+                html += `
+                    <a href="#" class="list-group-item list-group-item-action" onclick="analyzeImapEmail('${email.id}')">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">${escapeHtml(email.subject)}</h6>
+                            <small>${new Date(email.date).toLocaleDateString()}</small>
+                        </div>
+                        <p class="mb-1">From: ${escapeHtml(email.from)}</p>
+                    </a>
+                `;
+            });
+            html += '</div>';
+            emailListDiv.innerHTML = html;
+        }
+
+        function analyzeImapEmail(emailId) {
+            performAnalysis('/analyze_imap_email', JSON.stringify({ email_id: emailId }), 'application/json');
+        }
+
+        function performAnalysis(url, data, contentType = null) {
+            showLoading();
+            hideError();
+            hideResults();
+
+            const options = {
+                method: 'POST',
+                body: data
+            };
+
+            if (contentType) {
+                options.headers = { 'Content-Type': contentType };
+            }
+
+            fetch(url, options)
+                .then(response => response.json())
+                .then(data => {
+                    hideLoading();
+                    if (data.error) {
+                        showError(data.error);
+                    } else {
+                        currentReportFilename = data.report_filename;
+                        displayResults(data);
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    showError('Analysis failed: ' + error);
+                });
+        }
+
+        function displayResults(data) {
+            // Overall risk
+            const riskScore = data.overall_risk_score || 0;
+            document.getElementById('riskScore').textContent = `Risk Score: ${riskScore}/100`;
+            document.getElementById('riskProgress').style.width = `${riskScore}%`;
+            
+            // Set risk level and color
+            let riskLevel, riskClass;
+            if (riskScore >= 70) {
+                riskLevel = 'High Risk';
+                riskClass = 'risk-high';
+                document.getElementById('riskProgress').className = 'progress-bar bg-danger';
+            } else if (riskScore >= 40) {
+                riskLevel = 'Medium Risk';
+                riskClass = 'risk-medium';
+                document.getElementById('riskProgress').className = 'progress-bar bg-warning';
+            } else {
+                riskLevel = 'Low Risk';
+                riskClass = 'risk-low';
+                document.getElementById('riskProgress').className = 'progress-bar bg-success';
+            }
+            
+            document.getElementById('riskLevel').textContent = riskLevel;
+            document.getElementById('overallRiskCard').className = `card ${riskClass}`;
+
+            // Basic email info
+            document.getElementById('emailSubject').textContent = data.subject || '-';
+            document.getElementById('emailFrom').textContent = data.from || '-';
+            document.getElementById('analysisDate').textContent = new Date(data.timestamp).toLocaleString();
+
+            // Summary
+            const suspiciousUrls = data.urls ? data.urls.filter(url => url.suspicious && url.suspicious.length > 0).length : 0;
+            const attachmentCount = data.attachments ? data.attachments.length : 0;
+            const maliciousDetections = data.malicious_detections || 0;
+
+            document.getElementById('suspiciousUrls').textContent = suspiciousUrls;
+            document.getElementById('attachmentCount').textContent = attachmentCount;
+            document.getElementById('maliciousDetections').textContent = maliciousDetections;
+
+            // Detailed analysis sections
+            displayHeadersAnalysis(data.headers || {});
+            displayURLAnalysis(data.urls || []);
+            displayAttachmentAnalysis(data.attachments || []);
+            displayHTMLAnalysis(data.html_analysis || {});
+            displayVTAnalysis(data.vt_results || {});
+
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        function displayHeadersAnalysis(headers) {
+            const container = document.getElementById('headersAnalysis');
+            let html = '';
+
+            // Basic info
+            if (headers.basic_info) {
+                html += '<h6>Basic Information</h6>';
+                html += '<table class="table table-sm table-bordered">';
+                html += `<tr><td>Subject</td><td>${escapeHtml(headers.basic_info.subject)}</td></tr>`;
+                html += `<tr><td>From</td><td>${escapeHtml(headers.basic_info.from)}</td></tr>`;
+                html += `<tr><td>To</td><td>${escapeHtml(headers.basic_info.to)}</td></tr>`;
+                html += '</table>';
+            }
+
+            // Authentication
+            if (headers.authentication) {
+                html += '<h6 class="mt-3">Authentication</h6>';
+                html += '<table class="table table-sm table-bordered">';
+                const auth = headers.authentication;
+                html += `<tr><td>SPF</td><td>${escapeHtml(auth.spf?.result || 'N/A')}</td></tr>`;
+                html += `<tr><td>DKIM</td><td>${auth.dkim?.present ? 'Present' : 'Missing'}</td></tr>`;
+                html += `<tr><td>DMARC</td><td>${escapeHtml(auth.dmarc?.result || 'N/A')}</td></tr>`;
+                html += '</table>';
+            }
+
+            // Suspicious indicators
+            if (headers.suspicious_indicators && headers.suspicious_indicators.length > 0) {
+                html += '<h6 class="mt-3 text-danger">Suspicious Indicators</h6>';
+                html += '<ul class="list-unstyled">';
+                headers.suspicious_indicators.forEach(indicator => {
+                    html += `<li><i class="fas fa-exclamation-triangle text-danger"></i> ${escapeHtml(indicator)}</li>`;
+                });
+                html += '</ul>';
+            }
+
+            container.innerHTML = html || '<p class="text-muted">No header data available.</p>';
+        }
+
+        function displayURLAnalysis(urls) {
+            const container = document.getElementById('urlAnalysis');
+            
+            if (urls.length === 0) {
+                container.innerHTML = '<p class="text-muted">No URLs found in email.</p>';
+                return;
+            }
+
+            let html = '';
+            urls.forEach(url => {
+                const isSuspicious = url.suspicious && url.suspicious.length > 0;
+                const riskClass = isSuspicious ? 'risk-high' : 'risk-low';
+                
+                html += `<div class="card mb-2 ${riskClass}">`;
+                html += '<div class="card-body">';
+                html += `<h6 class="card-title">${escapeHtml(url.cleaned)}</h6>`;
+                
+                if (isSuspicious) {
+                    html += '<p class="card-text"><strong>Suspicious Indicators:</strong></p>';
+                    html += '<ul>';
+                    url.suspicious.forEach(indicator => {
+                        html += `<li>${escapeHtml(indicator)}</li>`;
+                    });
+                    html += '</ul>';
+                }
+
+                if (url.vt_analysis && !url.vt_analysis.error) {
+                    const vt = url.vt_analysis;
+                    const vtRisk = vt.malicious > 0 ? 'text-danger' : 'text-success';
+                    html += `<p class="card-text ${vtRisk}">`;
+                    html += `<strong>VirusTotal:</strong> ${vt.malicious}/${vt.total_engines} engines detected as malicious`;
+                    html += ` (Confidence: ${vt.confidence_score}%)`;
+                    html += '</p>';
+                }
+                
+                html += '</div></div>';
+            });
+
+            container.innerHTML = html;
+        }
+
+        function displayAttachmentAnalysis(attachments) {
+            const container = document.getElementById('attachmentAnalysis');
+            
+            if (attachments.length === 0) {
+                container.innerHTML = '<p class="text-muted">No attachments found in email.</p>';
+                return;
+            }
+
+            let html = '';
+            attachments.forEach(attachment => {
+                const isSuspicious = attachment.suspicious_indicators && attachment.suspicious_indicators.length > 0;
+                const riskClass = isSuspicious ? 'risk-high' : 'risk-low';
+                
+                html += `<div class="card mb-2 ${riskClass}">`;
+                html += '<div class="card-body">';
+                html += `<h6 class="card-title">${escapeHtml(attachment.filename)}</h6>`;
+                html += `<p class="card-text"><strong>Type:</strong> ${escapeHtml(attachment.file_type)}</p>`;
+                html += `<p class="card-text"><strong>Size:</strong> ${attachment.size} bytes</p>`;
+                html += `<p class="card-text"><strong>SHA256:</strong> <code>${attachment.hashes?.sha256}</code></p>`;
+                
+                if (isSuspicious) {
+                    html += '<p class="card-text text-danger"><strong>Suspicious Indicators:</strong></p>';
+                    html += '<ul>';
+                    attachment.suspicious_indicators.forEach(indicator => {
+                        html += `<li>${escapeHtml(indicator)}</li>`;
+                    });
+                    html += '</ul>';
+                }
+                
+                html += '</div></div>';
+            });
+
+            container.innerHTML = html;
+        }
+
+        function displayHTMLAnalysis(htmlAnalysis) {
+            const container = document.getElementById('htmlAnalysis');
+            let html = '';
+
+            if (Object.keys(htmlAnalysis).length === 0) {
+                container.innerHTML = '<p class="text-muted">No HTML content to analyze.</p>';
+                return;
+            }
+
+            const riskScore = htmlAnalysis.overall_risk_score || 0;
+            html += `<p><strong>Phishing Risk Score:</strong> ${riskScore}/100</p>`;
+
+            // Suspicious elements
+            if (htmlAnalysis.suspicious_elements && htmlAnalysis.suspicious_elements.length > 0) {
+                html += '<h6 class="text-danger">Suspicious Elements</h6>';
+                html += '<ul>';
+                htmlAnalysis.suspicious_elements.forEach(element => {
+                    html += `<li>${escapeHtml(element.details)}</li>`;
+                });
+                html += '</ul>';
+            }
+
+            // Forms
+            if (htmlAnalysis.forms && htmlAnalysis.forms.length > 0) {
+                html += '<h6>Suspicious Forms</h6>';
+                htmlAnalysis.forms.forEach(form => {
+                    html += `<p>Action: ${escapeHtml(form.action)}</p>`;
+                    if (form.indicators && form.indicators.length > 0) {
+                        html += '<ul>';
+                        form.indicators.forEach(indicator => {
+                            html += `<li>${escapeHtml(indicator)}</li>`;
+                        });
+                        html += '</ul>';
+                    }
+                });
+            }
+
+            container.innerHTML = html;
+        }
+
+        function displayVTAnalysis(vtResults) {
+            const container = document.getElementById('vtAnalysis');
+            
+            if (Object.keys(vtResults).length === 0) {
+                container.innerHTML = '<p class="text-muted">No VirusTotal results available.</p>';
+                return;
+            }
+
+            let html = '';
+            for (const [item, results] of Object.entries(vtResults)) {
+                if (results.error) continue;
+                
+                html += '<div class="card mb-2">';
+                html += '<div class="card-body">';
+                html += `<h6 class="card-title">${escapeHtml(item)}</h6>`;
+                
+                if (results.malicious > 0) {
+                    html += `<p class="text-danger"><strong>Malicious:</strong> ${results.malicious} detections</p>`;
+                } else {
+                    html += `<p class="text-success"><strong>Malicious:</strong> ${results.malicious} detections</p>`;
+                }
+                
+                html += `<p><strong>Suspicious:</strong> ${results.suspicious} detections</p>`;
+                html += `<p><strong>Confidence Score:</strong> ${results.confidence_score}%</p>`;
+                html += `<p><strong>Total Engines:</strong> ${results.total_engines}</p>`;
+                html += '</div></div>';
+            }
+
+            container.innerHTML = html || '<p class="text-muted">No valid VirusTotal results.</p>';
+        }
+
+        function downloadReport() {
+            if (currentReportFilename) {
+                window.open(`/download_report/${currentReportFilename}`, '_blank');
+            } else {
+                showError('No report available for download');
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('loadingSpinner').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorAlert').style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorAlert').style.display = 'none';
+        }
+
+        function hideResults() {
+            document.getElementById('resultsSection').style.display = 'none';
+        }
+
+        function escapeHtml(unsafe) {
+            if (unsafe === null || unsafe === undefined) return '';
+            return unsafe.toString()
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>

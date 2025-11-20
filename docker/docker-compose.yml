@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  phishing-analyzer:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./config/settings.yaml:/app/config/settings.yaml
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+    environment:
+      - PYTHONPATH=/app/src
+      - FLASK_ENV=production
+    restart: unless-stopped
+
+  # Optional: Add Redis for caching VT results
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # Optional: Add PostgreSQL for storing analysis results
+  postgres:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=phishing_analyzer
+      - POSTGRES_USER=analyzer
+      - POSTGRES_PASSWORD=change_this_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
