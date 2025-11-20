@@ -2,14 +2,14 @@
 
 # IMAP Settings for email fetching
 imap:
-  server: "imap.gmail.com"
-  username: "ahmddsadek1@gmail.com"
-  password: "fywq jlxm cvgx jaqp"
+  server: "imap.gmail.com" #or outlook /anymail
+  username: "ahmdd*****@gmail.com"
+  password: "fy** j**m **** j*qp"
   mailbox: "INBOX"
 
 # VirusTotal API Configuration
 virustotal:
-  api_key: "952a5f4537d279aac1e1d66e08e5cb5d2769c287530e91f609eb0831b23e96bd"
+  api_key: "952a5f4537d279aac1e1d66e*********69c287530e91f609eb0831b23e96bd"
 
 # Analysis Settings
 analysis:
