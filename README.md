@@ -97,10 +97,7 @@ pytest -v tests/
 
 ---
 
-## 📜 License
-MIT License
 
----
 
 ## 👤 Author
 Ahmed — [GitHub Profile](https://github.com/ahmddd1)
